@@ -1,4 +1,16 @@
-import type { TypeOf, ZodType } from "./index.ts";
+import {
+  type TypeOf,
+  type ZodType,
+  z,
+  ZodArray,
+  ZodNever,
+  ZodObject,
+  ZodString,
+  ZodTuple,
+  ZodTupleItems,
+  ZodTypeAny,
+  ZodUnknown,
+} from "./index.ts";
 import { Primitive } from "./helpers/typeAliases.ts";
 import { util, ZodParsedType } from "./helpers/util.ts";
 
@@ -192,6 +204,48 @@ export type ZodFormattedError<T, U = string> = {
   _errors: U[];
 } & recursiveZodFormattedError<NonNullable<T>>;
 
+// ----------------
+
+// type RecursiveZodFormattedErrorSchema<T> = T extends [infer First, ...infer Rest]
+// ? Rest extends []
+//     ? ZodTuple<[ZodFormattedErrorSchema<First>]>
+//     : ZodTuple<[ZodFormattedErrorSchema<First>, ...ExtractTuple<Rest>]>
+//   : T extends any[]
+//   ? ZodArray<ZodFormattedErrorSchema<T[number]>>
+//   : T extends object
+//   ? ZodObject<{ [K in keyof T]: ZodFormattedErrorSchema<T[K]> }>
+//   : ZodUnknown;
+
+// type ExtractTuple<T extends any[]> = {
+//   [K in keyof T]: ZodFormattedErrorSchema<T[K]>
+// } extends infer U
+//   ? U extends ZodTypeAny[]
+//     ? U
+//     : never
+//   : never;
+
+//   type ZodFormattedErrorSchemaUnsafe<T> = ZodObject<{ _errors: ZodArray<ZodString> }
+//       & RecursiveZodFormattedErrorSchema<NonNullable<T> >>
+
+// export type ZodFormattedErrorSchema<T> = ZodFormattedErrorSchemaUnsafe<T> extends infer U ? U extends ZodTypeAny ? U : ZodNever
+
+// --------------------
+
+type ObjectSchemaHelper<T> = T extends object
+  ? { [K in keyof T]: K extends string ? ZodFormattedErrorSchema<T[K]> : never }
+  : {};
+
+// Safe wrapper that includes `_errors`
+type ZodFormattedErrorSchemaUnsafe<T> = ZodObject<
+  { _errors: ZodArray<ZodString> } & ObjectSchemaHelper<NonNullable<T>>
+>;
+
+// Ensures only valid Zod types are returned
+export type ZodFormattedErrorSchema<T> =
+  ZodFormattedErrorSchemaUnsafe<T> extends ZodTypeAny
+    ? ZodFormattedErrorSchemaUnsafe<T>
+    : ZodNever;
+//-------------------------
 export type inferFormattedError<
   T extends ZodType<any, any, any>,
   U = string

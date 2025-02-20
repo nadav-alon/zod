@@ -30,6 +30,7 @@ import {
   ZodCustomIssue,
   ZodError,
   ZodErrorMap,
+  ZodFormattedErrorSchema,
   ZodIssue,
   ZodIssueCode,
 } from "./ZodError";
@@ -166,6 +167,8 @@ export type SafeParseReturnType<Input, Output> =
   | SafeParseSuccess<Output>
   | SafeParseError<Input>;
 
+export type FormattedErrorSchema<Input> = ZodObject<ZodError<Input>["format"]>;
+
 export abstract class ZodType<
   Output = any,
   Def extends ZodTypeDef = ZodTypeDef,
@@ -264,6 +267,8 @@ export abstract class ZodType<
 
     return handleResult(ctx, result);
   }
+
+  abstract errorFormatSchema(): ZodFormattedErrorSchema<Input>;
 
   "~validate"(
     data: unknown
@@ -1294,6 +1299,10 @@ export class ZodString extends ZodType<string, ZodStringDef, string> {
       ...this._def,
       checks: [...this._def.checks, { kind: "toUpperCase" }],
     });
+  }
+
+  errorFormatSchema(): ZodFormattedErrorSchema<string> {
+    return ZodObject.create({ _errors: ZodArray.create(ZodString.create()) });
   }
 
   get isDatetime() {
